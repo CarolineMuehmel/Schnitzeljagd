@@ -225,6 +225,14 @@
     <div class="section-label">Your collected letters</div>
     <div class="collected-grid" id="collected-display"></div>
     <div class="hint-box" id="hint-area">Find the passwords at each station to unlock them.</div>
+    <button class="btn btn-danger" style="margin-top:1.25rem;" onclick="resetProgress()">Reset all progress</button>
+    <div id="reset-confirm" style="display:none; margin-top:0.75rem; background:#fff5f5; border:0.5px solid #e0a0a0; border-radius:8px; padding:12px 14px;">
+      <p style="font-size:13px; color:#c0392b; margin-bottom:10px;">This will delete all collected letters and unlocked stations. Are you sure?</p>
+      <div style="display:flex; gap:8px;">
+        <button onclick="confirmReset()" style="flex:1; padding:10px; background:#c0392b; color:#fff; border:none; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit;">Yes, reset</button>
+        <button onclick="cancelReset()" style="flex:1; padding:10px; background:#fff; color:#666; border:0.5px solid #ccc; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit;">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <!-- SCREEN: Password entry -->
@@ -523,6 +531,20 @@ function showReveal() {
   buildCollectedDisplay('rev-collected');
   document.getElementById('rev-hint').textContent = getHint();
   showScreen('screen-reveal');
+}
+
+function resetProgress() {
+  document.getElementById('reset-confirm').style.display = 'block';
+}
+function cancelReset() {
+  document.getElementById('reset-confirm').style.display = 'none';
+}
+function confirmReset() {
+  collected = {};
+  unlocked = {};
+  saveProgress();
+  document.getElementById('reset-confirm').style.display = 'none';
+  buildSelector();
 }
 
 loadProgress();
