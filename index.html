@@ -283,8 +283,29 @@
     <div class="section-label">Letters collected so far</div>
     <div class="collected-grid" id="rev-collected"></div>
     <div class="hint-box" id="rev-hint"></div>
-    <button class="btn btn-primary" style="margin-top:1.25rem;" onclick="showSelector()">Go to next station →</button>
+    <button class="btn btn-primary" style="margin-top:1.25rem;" id="btn-solve" onclick="showSolve()" style="display:none;">Solve the word →</button>
+    <button class="btn" id="btn-next-station" onclick="showSelector()">Go to next station →</button>
     <button class="btn btn-danger" onclick="showQuiz()">Retry this quiz →</button>
+  </div>
+
+  <!-- SCREEN: Word assembly -->
+  <div id="screen-solve" class="screen">
+    <h2>Assemble the word</h2>
+    <p style="font-size:14px; color:#666; margin-bottom:1.5rem;">Drag your letters into the slots to spell the hidden word.</p>
+
+    <!-- Slots -->
+    <div style="margin-bottom:2rem;">
+      <div id="slots-row" style="display:flex; gap:8px; justify-content:center; margin-bottom:10px;"></div>
+      <div id="lines-row" style="display:flex; gap:8px; justify-content:center;"></div>
+    </div>
+
+    <!-- Letter tiles -->
+    <div class="section-label">Your letters</div>
+    <div id="tiles-row" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; min-height:58px;"></div>
+
+    <div id="solve-feedback" style="margin-top:1.5rem;"></div>
+    <button class="btn btn-primary" style="margin-top:1rem;" onclick="checkWord()">Check the word →</button>
+    <button class="btn" onclick="showSelector()">← Back to stations</button>
   </div>
 
 </div>
@@ -530,7 +551,129 @@ function showReveal() {
   document.getElementById('big-letter').textContent = collected[s.id];
   buildCollectedDisplay('rev-collected');
   document.getElementById('rev-hint').textContent = getHint();
+  var allDone = Object.keys(collected).length === 7;
+  document.getElementById('btn-solve').style.display = allDone ? 'block' : 'none';
+  document.getElementById('btn-next-station').style.display = allDone ? 'none' : 'block';
   showScreen('screen-reveal');
+}
+
+var slotContents = [null, null, null, null, null, null, null];
+var draggedTile = null;
+
+function showSolve() {
+  slotContents = [null, null, null, null, null, null, null];
+  buildSolveScreen();
+  document.getElementById('solve-feedback').innerHTML = '';
+  showScreen('screen-solve');
+}
+
+function buildSolveScreen() {
+  var letters = Object.keys(collected).map(Number).sort().map(function(id) {
+    return collected[id];
+  });
+
+  // Slots row
+  var slotsRow = document.getElementById('slots-row');
+  slotsRow.innerHTML = '';
+  for (var i = 0; i < 7; i++) {
+    (function(idx) {
+      var slot = document.createElement('div');
+      slot.style.cssText = 'width:38px;height:48px;border-radius:8px;border:0.5px solid #ccc;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;color:#1a1a1a;cursor:pointer;transition:border-color 0.1s;';
+      slot.id = 'slot-' + idx;
+      slot.textContent = slotContents[idx] || '';
+      slot.ondragover = function(e) { e.preventDefault(); slot.style.borderColor = '#1a1a1a'; };
+      slot.ondragleave = function() { slot.style.borderColor = '#ccc'; };
+      slot.ondrop = function(e) {
+        e.preventDefault();
+        slot.style.borderColor = '#ccc';
+        if (draggedTile === null) return;
+        // Return existing slot content to pool if occupied
+        if (slotContents[idx]) returnToPool(slotContents[idx], idx);
+        slotContents[idx] = draggedTile.letter;
+        slot.textContent = draggedTile.letter;
+        draggedTile.el.remove();
+        draggedTile = null;
+      };
+      // Tap to remove letter back to pool
+      slot.onclick = function() {
+        if (slotContents[idx]) {
+          returnToPool(slotContents[idx], idx);
+          slotContents[idx] = null;
+          slot.textContent = '';
+        }
+      };
+      slotsRow.appendChild(slot);
+    })(i);
+  }
+
+  // Lines row
+  var linesRow = document.getElementById('lines-row');
+  linesRow.innerHTML = '';
+  for (var j = 0; j < 7; j++) {
+    var line = document.createElement('div');
+    line.style.cssText = 'width:38px;height:2px;background:#1a1a1a;border-radius:1px;';
+    linesRow.appendChild(line);
+  }
+
+  // Tiles
+  rebuildTiles(letters);
+}
+
+function rebuildTiles(letters) {
+  var tilesRow = document.getElementById('tiles-row');
+  tilesRow.innerHTML = '';
+  // Show letters not yet placed in slots
+  var placed = slotContents.filter(Boolean);
+  var remaining = letters.slice();
+  placed.forEach(function(l) {
+    var idx = remaining.indexOf(l);
+    if (idx > -1) remaining.splice(idx, 1);
+  });
+  remaining.forEach(function(letter) {
+    addTile(letter, tilesRow);
+  });
+}
+
+function addTile(letter, container) {
+  var tile = document.createElement('div');
+  tile.style.cssText = 'width:38px;height:48px;border-radius:8px;border:0.5px solid #1a1a1a;background:#1a1a1a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:500;cursor:grab;user-select:none;';
+  tile.textContent = letter;
+  tile.draggable = true;
+  tile.ondragstart = function() { draggedTile = { letter: letter, el: tile }; };
+  tile.ondragend = function() { draggedTile = null; };
+  // Tap-to-place: tap tile, then tap slot
+  tile.onclick = function() {
+    // Find first empty slot
+    for (var i = 0; i < 7; i++) {
+      if (!slotContents[i]) {
+        slotContents[i] = letter;
+        document.getElementById('slot-' + i).textContent = letter;
+        tile.remove();
+        return;
+      }
+    }
+  };
+  container.appendChild(tile);
+}
+
+function returnToPool(letter, slotIdx) {
+  slotContents[slotIdx] = null;
+  document.getElementById('slot-' + slotIdx).textContent = '';
+  addTile(letter, document.getElementById('tiles-row'));
+}
+
+function checkWord() {
+  var word = slotContents.join('');
+  var feedback = document.getElementById('solve-feedback');
+  if (slotContents.indexOf(null) > -1) {
+    feedback.innerHTML = '<div style="font-size:14px;color:#c0392b;background:#fff5f5;border:0.5px solid #e0a0a0;border-radius:8px;padding:10px 14px;">Fill all 7 slots first!</div>';
+    return;
+  }
+  if (word === 'SUCCESS') {
+    feedback.innerHTML = '<div style="font-size:14px;color:#085041;background:#E1F5EE;border:0.5px solid #5DCAA5;border-radius:8px;padding:12px 14px;line-height:1.6;"><strong style="display:block;font-size:16px;margin-bottom:4px;">Correct!</strong>The word is SUCCESS. Well done — your team nailed it!</div>';
+  } else {
+    feedback.innerHTML = '<div style="font-size:14px;color:#666;background:#f5f5f3;border:0.5px solid #e0e0e0;border-radius:8px;padding:10px 14px;">Not quite — keep rearranging!</div>';
+  }
 }
 
 function resetProgress() {
