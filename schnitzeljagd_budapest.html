@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Budapest Schnitzeljagd</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f5f3;
+    color: #1a1a1a;
+    min-height: 100vh;
+  }
+  .app {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 1.25rem 1rem 3rem;
+  }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Typography */
+  h1 { font-size: 22px; font-weight: 500; color: #1a1a1a; margin-bottom: 0.4rem; }
+  h2 { font-size: 18px; font-weight: 500; color: #1a1a1a; margin-bottom: 1rem; }
+  p { font-size: 15px; color: #666; line-height: 1.7; margin-bottom: 1rem; }
+
+  /* Badges */
+  .station-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f0efe9; border: 0.5px solid #ddd;
+    border-radius: 8px; padding: 4px 12px;
+    font-size: 12px; color: #888; margin-bottom: 1rem;
+  }
+
+  /* Cards */
+  .card {
+    background: #fff; border: 0.5px solid #e0e0e0;
+    border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem;
+  }
+  .obj-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+  .obj-text { font-size: 15px; font-weight: 500; color: #1a1a1a; }
+
+  /* Section labels */
+  .section-label {
+    font-size: 11px; font-weight: 500; color: #aaa;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 8px; margin-top: 1.25rem;
+  }
+
+  /* Lists */
+  .rules-list { list-style: none; padding: 0; }
+  .rules-list li {
+    font-size: 14px; color: #666;
+    padding: 4px 0 4px 16px; position: relative; line-height: 1.5;
+  }
+  .rules-list li::before { content: '–'; position: absolute; left: 0; color: #bbb; }
+  .steps-list { list-style: none; padding: 0; }
+  .steps-list li {
+    display: flex; gap: 10px; font-size: 14px; color: #666;
+    padding: 6px 0; border-bottom: 0.5px solid #eee; line-height: 1.5;
+  }
+  .steps-list li:last-child { border-bottom: none; }
+  .step-num { font-size: 12px; font-weight: 500; color: #bbb; min-width: 18px; padding-top: 2px; }
+
+  /* Buttons */
+  .btn {
+    display: block; width: 100%; padding: 13px;
+    border: 0.5px solid #ccc; border-radius: 8px;
+    background: transparent; font-size: 15px; color: #1a1a1a;
+    cursor: pointer; text-align: center; margin-top: 0.75rem;
+    font-family: inherit; transition: background 0.12s;
+  }
+  .btn:hover { background: #f0efe9; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: #1a1a1a; color: #fff;
+    border-color: #1a1a1a;
+  }
+  .btn-primary:hover { background: #333; }
+
+  /* Quiz options */
+  .option {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 14px; border: 0.5px solid #e0e0e0;
+    border-radius: 8px; margin-bottom: 8px;
+    cursor: pointer; font-size: 14px; color: #1a1a1a;
+    background: #fff; transition: background 0.1s, border-color 0.1s;
+  }
+  .option:hover { background: #f5f5f3; border-color: #bbb; }
+  .option.locked { pointer-events: none; opacity: 0.4; }
+  .option.selected { border-color: #1a1a1a; background: #f0efe9; pointer-events: none; }
+  .option-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1.5px solid #ccc; flex-shrink: 0;
+  }
+
+  /* Progress bar */
+  .progress-row { display: flex; gap: 5px; margin-bottom: 1.5rem; }
+  .progress-dot { flex: 1; height: 4px; border-radius: 2px; background: #e0e0e0; }
+  .progress-dot.done { background: #1a1a1a; }
+
+  /* Station selector grid */
+  .selector-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+  .station-btn {
+    padding: 14px 8px; border: 0.5px solid #e0e0e0;
+    border-radius: 10px; background: #fff;
+    cursor: pointer; text-align: center; font-family: inherit;
+    transition: background 0.12s;
+  }
+  .station-btn:hover { background: #f5f5f3; }
+  .station-btn.done { border-color: #1a1a1a; }
+  .station-num-big { font-size: 22px; font-weight: 500; color: #1a1a1a; display: block; }
+  .station-name-small { font-size: 11px; color: #999; }
+
+  /* Collected letters */
+  .collected-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 0.5rem 0 1.25rem; }
+  .collected-chip {
+    width: 42px; height: 50px; border-radius: 8px;
+    border: 0.5px solid #ccc; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 500; color: #1a1a1a;
+  }
+
+  /* Big letter reveal */
+  .big-letter {
+    font-size: 100px; font-weight: 500; color: #1a1a1a;
+    line-height: 1; display: block; text-align: center;
+    margin: 2rem 0 0.5rem;
+  }
+  .letter-sub { font-size: 13px; color: #999; text-align: center; margin-bottom: 2rem; }
+
+  /* Hint / warning box */
+  .hint-box {
+    font-size: 13px; color: #666; background: #f0efe9;
+    border-radius: 8px; padding: 10px 14px; line-height: 1.6;
+  }
+  .warning-box {
+    font-size: 13px; color: #666; border: 0.5px solid #e0e0e0;
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 1.25rem; line-height: 1.6;
+    background: #fff;
+  }
+
+  /* Header logo area */
+  .app-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem;
+  }
+  .logo-dot {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #1a1a1a; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px; font-weight: 500;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SCREEN: Station selector -->
+  <div id="screen-selector" class="screen active">
+    <div class="app-header">
+      <div class="logo-dot">S</div>
+      <div>
+        <h1 style="margin:0;">Budapest Schnitzeljagd</h1>
+        <p style="font-size:12px; margin:0; color:#999;">ELBE Run Transition</p>
+      </div>
+    </div>
+    <p style="font-size:13px; margin-bottom:1.25rem;">Visit all 7 stations, collect your letters, and figure out the hidden word.</p>
+    <div class="section-label">Stations</div>
+    <div class="selector-grid" id="station-selector"></div>
+    <div class="section-label">Your collected letters</div>
+    <div class="collected-grid" id="collected-display"></div>
+    <div class="hint-box" id="hint-area">Complete all 7 stations to collect your letters.</div>
+  </div>
+
+  <!-- SCREEN: Instructions -->
+  <div id="screen-instructions" class="screen">
+    <div class="progress-row" id="prog-inst"></div>
+    <div class="station-badge">Station <span id="inst-badge-num"></span> of 7</div>
+    <h2 id="inst-game-name"></h2>
+    <div class="card">
+      <div class="obj-label">Objective</div>
+      <div class="obj-text" id="inst-objective"></div>
+    </div>
+    <div class="section-label">Setup</div>
+    <p id="inst-setup" style="margin:0 0 1rem; font-size:14px;"></p>
+    <div class="section-label">Rules</div>
+    <ul class="rules-list" id="inst-rules"></ul>
+    <div class="section-label">Facilitator steps</div>
+    <ol class="steps-list" id="inst-steps"></ol>
+    <button class="btn btn-primary" style="margin-top:1.5rem;" onclick="showQuiz()">Done — take the quiz →</button>
+    <button class="btn" onclick="showSelector()">← All stations</button>
+  </div>
+
+  <!-- SCREEN: Quiz -->
+  <div id="screen-quiz" class="screen">
+    <div class="progress-row" id="prog-quiz"></div>
+    <div class="station-badge">Station <span id="quiz-badge-num"></span> of 7 — Quiz</div>
+    <h2>Which principle did this game represent?</h2>
+    <div class="warning-box" id="quiz-warning"></div>
+    <div id="options-list"></div>
+    <button class="btn" onclick="showInstructions()">← Back to instructions</button>
+  </div>
+
+  <!-- SCREEN: Letter reveal -->
+  <div id="screen-reveal" class="screen">
+    <div class="station-badge">Station <span id="rev-badge-num"></span> of 7</div>
+    <span class="big-letter" id="big-letter"></span>
+    <div class="letter-sub">Your letter for this station.</div>
+    <div class="section-label">Letters collected so far</div>
+    <div class="collected-grid" id="rev-collected"></div>
+    <div class="hint-box" id="rev-hint"></div>
+    <button class="btn btn-primary" style="margin-top:1.25rem;" onclick="showSelector()">Go to next station →</button>
+  </div>
+
+</div>
+<script>
+const stations = [
+  {
+    id: 1, principle: "Collective Responsibility", game: "The Silent Shape",
+    correctLetter: "S", wrongLetter: "A",
+    objective: "Experience that success or failure is shared and cannot be owned by one person.",
+    setup: "Give the group one rope and ask everyone to close their eyes.",
+    rules: ["No talking at all", "Eyes remain closed throughout", "No assigned leader — nobody takes charge"],
+    steps: ["Hand out the rope so everyone holds it", "Ask everyone to close their eyes", "Give the task: form a triangle with the rope", "Stop after 3–4 minutes and open eyes"],
+    wrongChoices: ["Roles & Responsibilities", "Respect & Trust", "Personal Responsibility & Self-Reflection"]
+  },
+  {
+    id: 2, principle: "Respect & Trust", game: "Trust Lean (Micro)",
+    correctLetter: "U", wrongLetter: "O",
+    objective: "Feel trust as a physical experience rather than just a concept.",
+    setup: "One person stands between two teammates who will catch them.",
+    rules: ["Lean only 5–10 cm — no dramatic falls", "Catchers must say 'ready' before the lean", "Leaner must not brace or catch themselves"],
+    steps: ["Position one person between two catchers", "Catchers confirm readiness out loud", "Leaner falls back slowly", "Repeat with another person"],
+    wrongChoices: ["Open & Transparent Communication", "Collective Responsibility", "Constructive Conflict Resolution"]
+  },
+  {
+    id: 3, principle: "One-Team Approach", game: "Cards, One Answer",
+    correctLetter: "C", wrongLetter: "K",
+    objective: "Show that when information is siloed, the team cannot solve the problem alone.",
+    setup: "Give three people different cards: one has the rules, one has symbols, one has the final question.",
+    rules: ["Talking is allowed — discuss freely", "Cards may not be shown to others — only described"],
+    steps: ["Distribute the three cards to different people", "Ask the group to solve the riddle together", "Observe how they share information", "Stop after solution or 3 minutes"],
+    wrongChoices: ["Personal Responsibility & Self-Reflection", "Constructive Conflict Resolution", "Roles & Responsibilities"]
+  },
+  {
+    id: 4, principle: "Open & Transparent Communication", game: "Hidden Rule",
+    correctLetter: "C", wrongLetter: "X",
+    objective: "Demonstrate how hidden constraints slow the whole group down.",
+    setup: "Simple task (e.g. ordering numbers). One person secretly receives a restriction on a card.",
+    rules: ["The restricted player may reveal the rule at any time", "Others must try to complete the task normally"],
+    steps: ["Assign the ordering task to the group", "Secretly hand one person a restriction card", "Let the group struggle for a bit", "Stop after 3 minutes and debrief"],
+    wrongChoices: ["Respect & Trust", "Collective Responsibility", "One-Team Approach"]
+  },
+  {
+    id: 5, principle: "Constructive Conflict Resolution", game: "Yes / Speed Round",
+    correctLetter: "E", wrongLetter: "I",
+    objective: "Feel the difference between blocking ideas and building on them.",
+    setup: "Two people plan a simple activity together (e.g. an office party).",
+    rules: ["Round 1: one person can only say 'No' to every suggestion", "Round 2: that person must respond with 'Yes, and…' instead"],
+    steps: ["Run Round 1 for 60 seconds", "Switch to Round 2 for 60 seconds", "Ask the group what felt different", "Compare energy and output"],
+    wrongChoices: ["Roles & Responsibilities", "Open & Transparent Communication", "One-Team Approach"]
+  },
+  {
+    id: 6, principle: "Roles & Responsibilities", game: "Too Many Hands",
+    correctLetter: "S", wrongLetter: "T",
+    objective: "Show how role clarity makes a team dramatically faster.",
+    setup: "Paper and tape available. Task: build the tallest structure possible.",
+    rules: ["Round 1: everyone gives instructions — no assigned roles", "Round 2: assign builder, planner, and quality checker"],
+    steps: ["Run Round 1 for 90 seconds (chaotic)", "Debrief quickly — what went wrong?", "Assign roles clearly", "Run Round 2 for 90 seconds and compare"],
+    wrongChoices: ["Collective Responsibility", "Respect & Trust", "Personal Responsibility & Self-Reflection"]
+  },
+  {
+    id: 7, principle: "Personal Responsibility & Self-Reflection", game: "The One-Finger Rule",
+    correctLetter: "S", wrongLetter: "D",
+    objective: "Create instant awareness of how much we blame others vs. owning our contribution.",
+    setup: "Ask all participants to point with one finger at what caused a recent failure.",
+    rules: ["No discussion while pointing — just observe", "Everyone points at the same time"],
+    steps: ["Ask: 'Point at what caused the last failure you experienced'", "Observe: most fingers point outward", "Ask: 'Now — what part of that was in your control?'", "Let the silence do the work"],
+    wrongChoices: ["Collective Responsibility", "Open & Transparent Communication", "One-Team Approach"]
+  }
+];
+
+let currentStation = null;
+let collected = {};
+
+function loadProgress() {
+  try { collected = JSON.parse(localStorage.getItem('bjq_collected') || '{}'); } catch(e) { collected = {}; }
+}
+function saveProgress() {
+  try { localStorage.setItem('bjq_collected', JSON.stringify(collected)); } catch(e) {}
+}
+
+function buildProgress(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i = 1; i <= 7; i++) {
+    const d = document.createElement('div');
+    d.className = 'progress-dot' + (collected.hasOwnProperty(i) ? ' done' : '');
+    el.appendChild(d);
+  }
+}
+
+function buildCollectedDisplay(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = '';
+  const ids = Object.keys(collected).map(Number).sort();
+  if (ids.length === 0) {
+    el.innerHTML = '<span style="font-size:13px;color:#bbb;">No letters yet.</span>';
+    return;
+  }
+  ids.forEach(id => {
+    const chip = document.createElement('div');
+    chip.className = 'collected-chip';
+    chip.title = 'Station ' + id;
+    chip.textContent = collected[id];
+    el.appendChild(chip);
+  });
+}
+
+function getHint() {
+  const count = Object.keys(collected).length;
+  if (count === 0) return 'Complete all 7 stations to collect your letters.';
+  if (count < 7) return count + ' of 7 letters collected. Keep going!';
+  return 'All 7 letters collected — arrange them to spell the mystery word!';
+}
+
+function buildSelector() {
+  const grid = document.getElementById('station-selector');
+  grid.innerHTML = '';
+  stations.forEach(s => {
+    const done = collected.hasOwnProperty(s.id);
+    const btn = document.createElement('button');
+    btn.className = 'station-btn' + (done ? ' done' : '');
+    btn.innerHTML = '<span class="station-num-big">' + (done ? collected[s.id] : s.id) + '</span><span class="station-name-small">' + (done ? '✓ ' : '') + s.game + '</span>';
+    btn.onclick = function() { openStation(s.id); };
+    grid.appendChild(btn);
+  });
+  buildCollectedDisplay('collected-display');
+  document.getElementById('hint-area').textContent = getHint();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function showSelector() { buildSelector(); showScreen('screen-selector'); }
+
+function openStation(id) {
+  currentStation = stations.find(function(s) { return s.id === id; });
+  showInstructions();
+}
+
+function showInstructions() {
+  var s = currentStation;
+  document.getElementById('inst-badge-num').textContent = s.id;
+  document.getElementById('inst-game-name').textContent = s.game;
+  document.getElementById('inst-objective').textContent = s.objective;
+  document.getElementById('inst-setup').textContent = s.setup;
+  document.getElementById('inst-rules').innerHTML = s.rules.map(function(r) { return '<li>' + r + '</li>'; }).join('');
+  document.getElementById('inst-steps').innerHTML = s.steps.map(function(st, i) {
+    return '<li><span class="step-num">' + (i+1) + '</span><span>' + st + '</span></li>';
+  }).join('');
+  buildProgress('prog-inst');
+  showScreen('screen-instructions');
+}
+
+function showQuiz() {
+  var s = currentStation;
+  document.getElementById('quiz-badge-num').textContent = s.id;
+  buildProgress('prog-quiz');
+
+  var alreadyDone = collected.hasOwnProperty(s.id);
+  document.getElementById('quiz-warning').textContent = alreadyDone
+    ? 'You already collected a letter for this station: ' + collected[s.id]
+    : 'Choose carefully — you only get one shot. Your answer determines your letter.';
+
+  var list = document.getElementById('options-list');
+  list.innerHTML = '';
+
+  var choices = [s.principle].concat(s.wrongChoices);
+  for (var i = choices.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = choices[i]; choices[i] = choices[j]; choices[j] = tmp;
+  }
+
+  choices.forEach(function(choice) {
+    var isCorrect = choice === s.principle;
+    var div = document.createElement('div');
+    div.className = 'option' + (alreadyDone ? ' locked' : '');
+    if (alreadyDone && isCorrect) div.classList.add('selected');
+    div.innerHTML = '<div class="option-dot"></div><span>' + choice + '</span>';
+    if (!alreadyDone) {
+      div.onclick = function() {
+        document.querySelectorAll('.option').forEach(function(o) { o.classList.add('locked'); });
+        div.classList.add('selected');
+        var letter = isCorrect ? s.correctLetter : s.wrongLetter;
+        collected[s.id] = letter;
+        saveProgress();
+        setTimeout(showReveal, 400);
+      };
+    }
+    list.appendChild(div);
+  });
+
+  showScreen('screen-quiz');
+}
+
+function showReveal() {
+  var s = currentStation;
+  document.getElementById('rev-badge-num').textContent = s.id;
+  document.getElementById('big-letter').textContent = collected[s.id];
+  buildCollectedDisplay('rev-collected');
+  document.getElementById('rev-hint').textContent = getHint();
+  showScreen('screen-reveal');
+}
+
+loadProgress();
+buildSelector();
+</script>
+</body>
+</html>
